@@ -4,9 +4,9 @@ use std::{
     str::FromStr,
 };
 
-use crate::{chunk::Chunk, chunk_type::ChunkType, png::Png, Error, Result};
+use crate::{chunk::Chunk, chunk_type::ChunkType, png::Png, Result};
 use anyhow::{anyhow, bail};
-use clap::{arg, command, Args, Parser, Subcommand};
+use clap::{arg, command, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "pngme")]

@@ -3,7 +3,7 @@
 use anyhow::{anyhow, bail};
 use std::fmt::Display;
 use std::fs::File;
-use std::io::{BufRead, Read};
+use std::io::Read;
 
 use crate::chunk::Chunk;
 use crate::{Error, Result};
@@ -92,7 +92,7 @@ impl TryFrom<&mut File> for Png {
         let mut buf = Vec::new();
         value.read_to_end(&mut buf)?;
 
-        let mut buf: &[u8] = buf.as_ref();
+        let buf: &[u8] = buf.as_ref();
         Png::try_from(buf)
     }
 }
