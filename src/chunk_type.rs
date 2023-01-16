@@ -54,13 +54,7 @@ impl ChunkType {
     }
 
     pub fn is_valid_bytes(bytes: [u8; 4]) -> bool {
-        for byte in bytes {
-            if !ChunkType::is_valid_byte(byte) {
-                return false;
-            }
-        }
-
-        true
+        bytes.iter().all(|byte| ChunkType::is_valid_byte(*byte))
     }
 }
 
@@ -98,12 +92,7 @@ impl FromStr for ChunkType {
             bail!("ChunkType::FromStr bytes are invalid")
         }
 
-        let chunk_type = ChunkType { chunk_bytes: bytes };
-
-        if !chunk_type.is_valid() {
-            bail!("ChunkType [{}] is invalid", s)
-        }
-        Ok(chunk_type)
+        Ok(Self { chunk_bytes: bytes })
     }
 }
 
