@@ -2,7 +2,8 @@
 
 use anyhow::{anyhow, bail};
 use std::fmt::Display;
-use std::io::BufRead;
+use std::fs::File;
+use std::io::{BufRead, Read};
 
 use crate::chunk::Chunk;
 use crate::{Error, Result};
@@ -84,6 +85,18 @@ impl TryFrom<&[u8]> for Png {
     }
 }
 
+impl TryFrom<&mut File> for Png {
+    type Error = Error;
+
+    fn try_from(value: &mut File) -> Result<Self> {
+        let mut buf = Vec::new();
+        value.read_to_end(&mut buf)?;
+
+        let mut buf: &[u8] = buf.as_ref();
+        Png::try_from(buf)
+    }
+}
+
 impl Display for Png {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.chunks.iter().fold(Ok(()), |result, chunk| {
@@ -144,7 +157,8 @@ mod tests {
             .copied()
             .collect();
 
-        let png = Png::try_from(bytes.as_ref());
+        let bytes: &[u8] = bytes.as_ref();
+        let png = Png::try_from(bytes);
 
         assert!(png.is_ok());
     }
@@ -162,8 +176,8 @@ mod tests {
             .copied()
             .collect();
 
-        let png = Png::try_from(bytes.as_ref());
-
+        let bytes: &[u8] = bytes.as_ref();
+        let png = Png::try_from(bytes);
         assert!(png.is_err());
     }
 
@@ -184,7 +198,8 @@ mod tests {
 
         chunk_bytes.append(&mut bad_chunk);
 
-        let png = Png::try_from(chunk_bytes.as_ref());
+        let chunk_bytes: &[u8] = chunk_bytes.as_ref();
+        let png = Png::try_from(chunk_bytes);
 
         assert!(png.is_err());
     }
@@ -248,8 +263,8 @@ mod tests {
             .chain(chunk_bytes.iter())
             .copied()
             .collect();
-
-        let png: Png = TryFrom::try_from(bytes.as_ref()).unwrap();
+        let bytes: &[u8] = bytes.as_ref();
+        let png: Png = TryFrom::try_from(bytes).unwrap();
 
         let _png_string = format!("{}", png);
     }

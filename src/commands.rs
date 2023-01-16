@@ -35,6 +35,16 @@ enum Commands {
         #[arg(long)]
         chunk_type: String,
     },
+    Remove {
+        #[arg(long)]
+        file_path: std::path::PathBuf,
+        #[arg(long)]
+        chunk_type: String,
+    },
+    List {
+        #[arg(long)]
+        file_path: std::path::PathBuf,
+    },
 }
 
 pub fn execute() -> Result<()> {
@@ -46,11 +56,16 @@ pub fn execute() -> Result<()> {
             message,
             chunk_type,
             output_file,
-        } => encode(file_path, message, chunk_type, output_file),
+        } => encode_chunk(file_path, message, chunk_type, output_file),
         Commands::Decode {
             file_path,
             chunk_type,
-        } => decode(file_path, chunk_type),
+        } => decode_chunk(file_path, chunk_type),
+        Commands::Remove {
+            file_path,
+            chunk_type,
+        } => remove_chunk(file_path, chunk_type),
+        Commands::List { file_path } => list_chunks(file_path),
     }?;
 
     println!("{}", output);
@@ -58,13 +73,51 @@ pub fn execute() -> Result<()> {
     Ok(())
 }
 
-fn decode(file_path: PathBuf, chunk_type: String) -> Result<String> {
+fn remove_chunk(file_path: PathBuf, chunk_type: String) -> Result<String> {
+    if !file_path.exists() {
+        return Err(anyhow!("file at the provided path does not exist"));
+    }
+
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .read(true)
+        .open(file_path)?;
+
+    let mut png = Png::try_from(&mut file)?;
+
+    let chunk = png.remove_chunk(chunk_type.as_str())?;
+
+    file.seek(std::io::SeekFrom::Start(0))?;
+    file.write_all(&png.as_bytes())?;
+    file.sync_all()?;
+    drop(file);
+
+    Ok(format!(
+        "removed chunk: [{}]: [{}]",
+        chunk.chunk_type().to_string(),
+        chunk.data_as_string()?
+    ))
+}
+
+fn list_chunks(file_path: PathBuf) -> Result<String> {
+    if !file_path.exists() {
+        return Err(anyhow!("file at the provided path does not exist"));
+    }
     let mut file = std::fs::OpenOptions::new().read(true).open(file_path)?;
 
-    let mut buf = Vec::<u8>::new();
-    file.read_to_end(&mut buf)?;
+    let png = Png::try_from(&mut file)?;
 
-    let png = Png::try_from(buf.as_ref())?;
+    png.chunks()
+        .iter()
+        .for_each(|chunk| println!("{}", chunk.chunk_type().to_string()));
+
+    Ok("".to_string())
+}
+
+fn decode_chunk(file_path: PathBuf, chunk_type: String) -> Result<String> {
+    let mut file = std::fs::OpenOptions::new().read(true).open(file_path)?;
+
+    let png = Png::try_from(&mut file)?;
 
     match png.chunk_by_type(&chunk_type) {
         Some(chunk) => Ok(format!(
@@ -76,7 +129,7 @@ fn decode(file_path: PathBuf, chunk_type: String) -> Result<String> {
     }
 }
 
-fn encode(
+fn encode_chunk(
     file_path: PathBuf,
     message: String,
     chunk_type: String,
@@ -109,7 +162,9 @@ fn encode(
         }
     }
 
-    let png = match Png::try_from(buf.as_ref()) {
+    let buf: &[u8] = buf.as_ref();
+
+    let png = match Png::try_from(buf) {
         Ok(mut png) => {
             png.append_chunk(chunk);
             png
